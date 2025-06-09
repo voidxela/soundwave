@@ -13,21 +13,41 @@ class AudioProcessor {
 
   async initialize(settings) {
     try {
-      // Create or resume audio context
+      // Create audio context (may be suspended due to autoplay policy)
       if (!this.audioContext) {
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        console.log('Created audio context, state:', this.audioContext.state);
       }
 
-      if (this.audioContext.state === 'suspended') {
-        await this.audioContext.resume();
-      }
-
+      // Don't try to resume immediately - wait for user interaction
       this.setupAudioNodes();
       this.updateSettings(settings);
+      
+      // Set up user interaction handler to resume context
+      this.setupUserInteractionHandler();
     } catch (error) {
       console.error('Failed to initialize audio processor:', error);
       throw error;
     }
+  }
+
+  setupUserInteractionHandler() {
+    const resumeContext = async () => {
+      if (this.audioContext && this.audioContext.state === 'suspended') {
+        try {
+          await this.audioContext.resume();
+          console.log('Audio context resumed after user interaction');
+        } catch (error) {
+          console.error('Failed to resume audio context:', error);
+        }
+      }
+    };
+
+    // Listen for user interactions that can resume audio context
+    const interactionEvents = ['click', 'keydown', 'touchstart'];
+    interactionEvents.forEach(event => {
+      document.addEventListener(event, resumeContext, { once: true, passive: true });
+    });
   }
 
   setupAudioNodes() {
@@ -60,10 +80,19 @@ class AudioProcessor {
   }
 
   updateSettings(settings) {
-    if (!this.audioContext || !settings) return;
+    if (!this.audioContext || !settings) {
+      console.warn('Cannot update settings: missing audio context or settings');
+      return;
+    }
 
     try {
       const currentTime = this.audioContext.currentTime;
+      console.log('Applying audio settings:', {
+        volume: settings.volume,
+        compression: settings.compression,
+        equalizer: settings.equalizer,
+        connectedElements: this.connectedElements.size
+      });
 
       // Update volume
       this.masterGainNode.gain.setTargetAtTime(
@@ -114,9 +143,51 @@ class AudioProcessor {
           0.01
         );
       }
+
+      // Create visual feedback on the page to show processing is active
+      this.showProcessingIndicator(settings);
     } catch (error) {
       console.error('Failed to update audio settings:', error);
     }
+  }
+
+  showProcessingIndicator(settings) {
+    // Remove any existing indicator
+    const existing = document.getElementById('audio-control-indicator');
+    if (existing) {
+      existing.remove();
+    }
+
+    // Create new indicator
+    const indicator = document.createElement('div');
+    indicator.id = 'audio-control-indicator';
+    indicator.style.cssText = `
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: rgba(52, 152, 219, 0.9);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      z-index: 10000;
+      pointer-events: none;
+    `;
+    indicator.innerHTML = `
+      🎵 Audio Control Active<br>
+      Volume: ${Math.round(settings.volume * 100)}%<br>
+      Connected: ${this.connectedElements.size} elements
+    `;
+
+    document.body.appendChild(indicator);
+
+    // Remove after 3 seconds
+    setTimeout(() => {
+      if (indicator.parentNode) {
+        indicator.remove();
+      }
+    }, 3000);
   }
 
   connectMediaElement(element) {
@@ -125,6 +196,11 @@ class AudioProcessor {
     }
 
     try {
+      // Resume audio context if suspended
+      if (this.audioContext.state === 'suspended') {
+        this.audioContext.resume();
+      }
+
       // Create media element source
       const source = this.audioContext.createMediaElementSource(element);
       
@@ -132,6 +208,15 @@ class AudioProcessor {
       source.connect(this.bassNode);
       
       this.connectedElements.add(element);
+      console.log('Connected media element:', element.tagName, element.src || element.currentSrc);
+      
+      // Add event listener to handle play events
+      element.addEventListener('play', () => {
+        if (this.audioContext.state === 'suspended') {
+          this.audioContext.resume();
+        }
+      });
+      
     } catch (error) {
       // Element might already be connected to another context
       console.warn('Could not connect media element:', error);

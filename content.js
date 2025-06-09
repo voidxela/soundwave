@@ -58,16 +58,36 @@ class TabAudioController {
 
   async updateAudioSettings(settings) {
     this.settings = settings;
+    console.log('Updating audio settings:', settings);
     
     if (this.audioProcessor) {
       await this.audioProcessor.updateSettings(settings);
+      
+      // Reprocess any audio elements that might not have been connected
+      const mediaElements = document.querySelectorAll('audio, video');
+      mediaElements.forEach(element => {
+        if (!element._audioControlProcessed) {
+          this.processMediaElement(element);
+        }
+      });
     }
   }
 
   interceptAudioElements() {
-    // Intercept existing audio/video elements
-    const mediaElements = document.querySelectorAll('audio, video');
-    mediaElements.forEach(element => this.processMediaElement(element));
+    // Wait for DOM to be ready
+    const processElements = () => {
+      // Intercept existing audio/video elements
+      const mediaElements = document.querySelectorAll('audio, video');
+      console.log('Found audio/video elements:', mediaElements.length);
+      mediaElements.forEach(element => this.processMediaElement(element));
+    };
+
+    // Process existing elements immediately
+    processElements();
+
+    // Also process after a short delay to catch dynamically loaded content
+    setTimeout(processElements, 500);
+    setTimeout(processElements, 2000);
 
     // Set up mutation observer for dynamically added elements
     const observer = new MutationObserver(mutations => {
@@ -87,10 +107,14 @@ class TabAudioController {
       });
     });
 
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
+    // Observe the entire document, not just body
+    const targetNode = document.body || document.documentElement;
+    if (targetNode) {
+      observer.observe(targetNode, {
+        childList: true,
+        subtree: true
+      });
+    }
   }
 
   processMediaElement(element) {
@@ -99,8 +123,34 @@ class TabAudioController {
     }
 
     try {
-      this.audioProcessor.connectMediaElement(element);
-      element._audioControlProcessed = true;
+      console.log('Processing media element:', element.tagName, element.src || element.currentSrc);
+      
+      // Wait for the element to be ready
+      const processWhenReady = () => {
+        if (element.readyState >= 1) { // HAVE_METADATA
+          this.audioProcessor.connectMediaElement(element);
+          element._audioControlProcessed = true;
+        } else {
+          // Wait for metadata to load
+          element.addEventListener('loadedmetadata', () => {
+            this.audioProcessor.connectMediaElement(element);
+            element._audioControlProcessed = true;
+          }, { once: true });
+        }
+      };
+
+      // Also try to connect on user interaction
+      const interactionEvents = ['play', 'click', 'touchstart'];
+      interactionEvents.forEach(eventType => {
+        element.addEventListener(eventType, () => {
+          if (!element._audioControlProcessed) {
+            this.audioProcessor.connectMediaElement(element);
+            element._audioControlProcessed = true;
+          }
+        }, { once: true });
+      });
+
+      processWhenReady();
     } catch (error) {
       console.error('Failed to process media element:', error);
     }
