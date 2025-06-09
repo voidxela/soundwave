@@ -31,6 +31,7 @@ class PopupController {
 
     // Settings controls
     this.matchTypeRadios = document.querySelectorAll('input[name="match-type"]');
+    this.debugModeCheckbox = document.getElementById('debug-mode');
     this.resetButton = document.getElementById('reset-button');
 
     // Status elements
@@ -77,6 +78,11 @@ class PopupController {
       radio.addEventListener('change', () => {
         this.saveSettings();
       });
+    });
+
+    // Debug mode toggle
+    this.debugModeCheckbox.addEventListener('change', () => {
+      this.saveSettings();
     });
 
     // Reset button
@@ -150,6 +156,9 @@ class PopupController {
     if (matchRadio) {
       matchRadio.checked = true;
     }
+
+    // Update debug mode
+    this.debugModeCheckbox.checked = this.currentSettings.debugMode || false;
   }
 
   updateVolumeDisplay() {
@@ -202,6 +211,7 @@ class PopupController {
         treble: parseFloat(this.trebleSlider.value)
       },
       matchType: this.getSelectedMatchType(),
+      debugMode: this.debugModeCheckbox.checked,
       enabled: true
     };
   }

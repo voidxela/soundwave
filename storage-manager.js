@@ -99,6 +99,7 @@ class StorageManager {
       },
       matchType: 'exact',
       enabled: true,
+      debugMode: false,
       lastUpdated: Date.now()
     };
   }

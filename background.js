@@ -202,7 +202,8 @@ class AudioControlBackground {
         treble: 0
       },
       matchType: 'exact', // exact, path, domain
-      enabled: true
+      enabled: true,
+      debugMode: false
     };
   }
 }
