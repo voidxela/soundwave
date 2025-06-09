@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Control</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Audio Control</h1>
+            <div class="url-info">
+                <span id="current-url" class="url-text">Loading...</span>
+            </div>
+        </header>
+
+        <main class="controls">
+            <!-- Volume Control -->
+            <section class="control-section">
+                <label class="control-label">
+                    <span>Volume</span>
+                    <span id="volume-value" class="control-value">100%</span>
+                </label>
+                <input type="range" id="volume-slider" class="slider" 
+                       min="0" max="2" step="0.01" value="1">
+            </section>
+
+            <!-- Compression Controls -->
+            <section class="control-section">
+                <h3 class="section-title">Compression</h3>
+                
+                <label class="control-label">
+                    <span>Threshold</span>
+                    <span id="threshold-value" class="control-value">-24 dB</span>
+                </label>
+                <input type="range" id="threshold-slider" class="slider" 
+                       min="-100" max="0" step="1" value="-24">
+
+                <label class="control-label">
+                    <span>Ratio</span>
+                    <span id="ratio-value" class="control-value">3:1</span>
+                </label>
+                <input type="range" id="ratio-slider" class="slider" 
+                       min="1" max="20" step="0.1" value="3">
+            </section>
+
+            <!-- Equalizer Controls -->
+            <section class="control-section">
+                <h3 class="section-title">Equalizer</h3>
+                
+                <div class="eq-controls">
+                    <div class="eq-band">
+                        <label class="eq-label">Bass</label>
+                        <input type="range" id="bass-slider" class="slider vertical" 
+                               min="-12" max="12" step="0.5" value="0" orient="vertical">
+                        <span id="bass-value" class="eq-value">0 dB</span>
+                    </div>
+                    
+                    <div class="eq-band">
+                        <label class="eq-label">Mid</label>
+                        <input type="range" id="mid-slider" class="slider vertical" 
+                               min="-12" max="12" step="0.5" value="0" orient="vertical">
+                        <span id="mid-value" class="eq-value">0 dB</span>
+                    </div>
+                    
+                    <div class="eq-band">
+                        <label class="eq-label">Treble</label>
+                        <input type="range" id="treble-slider" class="slider vertical" 
+                               min="-12" max="12" step="0.5" value="0" orient="vertical">
+                        <span id="treble-value" class="eq-value">0 dB</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Persistence -->
+            <section class="control-section">
+                <h3 class="section-title">Save Settings</h3>
+                
+                <div class="match-type-controls">
+                    <label class="radio-label">
+                        <input type="radio" name="match-type" value="exact" checked>
+                        <span>Exact URL</span>
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="match-type" value="path">
+                        <span>Path</span>
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="match-type" value="domain">
+                        <span>Domain</span>
+                    </label>
+                </div>
+            </section>
+
+            <!-- Reset Button -->
+            <section class="control-section">
+                <button id="reset-button" class="reset-button">Reset to Default</button>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <div class="status" id="status">Ready</div>
+        </footer>
+    </div>
+
+    <script src="storage-manager.js"></script>
+    <script src="popup.js"></script>
+</body>
+</html>
