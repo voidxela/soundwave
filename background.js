@@ -47,54 +47,101 @@ class AudioControlBackground {
     }
   }
 
-  async handleMessage(message, sender, sendResponse) {
-    try {
-      switch (message.action) {
-        case 'getTabSettings':
-          const settings = await this.getTabSettings(sender.tab.id);
-          sendResponse({ success: true, settings });
-          break;
+  handleMessage(message, sender, sendResponse) {
+    (async () => {
+      try {
+        switch (message.action) {
+          case 'getTabSettings':
+            if (sender.tab) {
+              const settings = await this.getTabSettings(sender.tab.id);
+              sendResponse({ success: true, settings });
+            } else {
+              sendResponse({ success: false, error: 'No tab context' });
+            }
+            break;
 
-        case 'updateSettings':
-          await this.updateTabSettings(sender.tab.id, message.settings, message.url);
-          sendResponse({ success: true });
-          break;
+          case 'updateSettings':
+            // Handle both content script and popup calls
+            let tabId = null;
+            if (sender.tab) {
+              tabId = sender.tab.id;
+            } else if (message.tabId) {
+              tabId = message.tabId;
+            } else {
+              // Get active tab if called from popup
+              const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+              if (activeTab) {
+                tabId = activeTab.id;
+              }
+            }
+            
+            if (tabId) {
+              await this.updateTabSettings(tabId, message.settings, message.url);
+              sendResponse({ success: true });
+            } else {
+              sendResponse({ success: false, error: 'No tab available' });
+            }
+            break;
 
-        case 'getActiveTabInfo':
-          const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-          const tabSettings = await this.loadSettingsForUrl(activeTab.url);
-          sendResponse({ 
-            success: true, 
-            tab: activeTab,
-            settings: tabSettings
-          });
-          break;
+          case 'getActiveTabInfo':
+            const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (activeTab) {
+              const tabSettings = await this.loadSettingsForUrl(activeTab.url);
+              sendResponse({ 
+                success: true, 
+                tab: activeTab,
+                settings: tabSettings
+              });
+            } else {
+              sendResponse({ success: false, error: 'No active tab found' });
+            }
+            break;
 
-        default:
-          sendResponse({ success: false, error: 'Unknown action' });
+          default:
+            sendResponse({ success: false, error: 'Unknown action' });
+        }
+      } catch (error) {
+        console.error('Message handling error:', error);
+        sendResponse({ success: false, error: error.message });
       }
-    } catch (error) {
-      console.error('Message handling error:', error);
-      sendResponse({ success: false, error: error.message });
-    }
+    })();
   }
 
   async getTabSettings(tabId) {
-    const [tab] = await chrome.tabs.query({ tabId });
-    if (!tab) return this.getDefaultSettings();
-    
-    return await this.loadSettingsForUrl(tab.url);
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      if (!tab) return this.getDefaultSettings();
+      
+      return await this.loadSettingsForUrl(tab.url);
+    } catch (error) {
+      console.error('Failed to get tab settings:', error);
+      return this.getDefaultSettings();
+    }
   }
 
   async updateTabSettings(tabId, settings, url) {
-    // Save settings for this URL
-    await this.saveSettingsForUrl(url, settings);
-    
-    // Update the content script
-    chrome.tabs.sendMessage(tabId, {
-      action: 'updateAudioSettings',
-      settings: settings
-    });
+    try {
+      console.log('Updating tab settings:', tabId, settings, url);
+      
+      // Save settings for this URL
+      await this.saveSettingsForUrl(url, settings);
+      console.log('Settings saved successfully');
+      
+      // Update the content script
+      try {
+        await chrome.tabs.sendMessage(tabId, {
+          action: 'updateAudioSettings',
+          settings: settings
+        });
+        console.log('Content script updated successfully');
+      } catch (contentError) {
+        console.warn('Failed to update content script (page may not have audio):', contentError);
+        // Don't throw - saving settings is still successful
+      }
+    } catch (error) {
+      console.error('Failed to update tab settings:', error);
+      throw error;
+    }
   }
 
   async loadSettingsForUrl(url) {
@@ -123,14 +170,20 @@ class AudioControlBackground {
 
   async saveSettingsForUrl(url, settings) {
     try {
+      console.log('Saving settings for URL:', url, 'with matchType:', settings.matchType);
       const urlObj = new URL(url);
       const saveKey = settings.matchType === 'domain' ? urlObj.hostname :
                      settings.matchType === 'path' ? urlObj.hostname + urlObj.pathname :
                      url;
       
+      console.log('Storage key:', saveKey);
+      console.log('Settings to save:', settings);
+      
       await chrome.storage.local.set({ [saveKey]: settings });
+      console.log('Successfully saved to storage');
     } catch (error) {
       console.error('Failed to save settings:', error);
+      throw error;
     }
   }
 

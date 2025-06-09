@@ -207,10 +207,15 @@ class PopupController {
   }
 
   async saveSettings() {
-    if (!this.currentTab) return;
+    if (!this.currentTab) {
+      console.error('No current tab available');
+      this.setStatus('No tab loaded');
+      return;
+    }
 
     try {
       this.currentSettings = this.getCurrentSettings();
+      console.log('Saving settings:', this.currentSettings, 'for URL:', this.currentTab.url);
       
       const response = await chrome.runtime.sendMessage({
         action: 'updateSettings',
@@ -218,15 +223,19 @@ class PopupController {
         url: this.currentTab.url
       });
 
-      if (response.success) {
+      console.log('Save response:', response);
+
+      if (response && response.success) {
         this.setStatus('Settings saved');
         setTimeout(() => this.setStatus('Ready'), 1000);
       } else {
-        this.setStatus('Error saving');
+        const errorMsg = response ? response.error : 'No response';
+        console.error('Save failed:', errorMsg);
+        this.setStatus('Error: ' + errorMsg);
       }
     } catch (error) {
       console.error('Failed to save settings:', error);
-      this.setStatus('Error saving');
+      this.setStatus('Error: ' + error.message);
     }
   }
 

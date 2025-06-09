@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Control Extension Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .audio-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        audio, video {
+            width: 100%;
+            margin: 10px 0;
+        }
+        .instructions {
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .debug-info {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Audio Control Extension Test Page</h1>
+    
+    <div class="instructions">
+        <h3>Testing Instructions:</h3>
+        <ol>
+            <li>Load the extension in Chrome (chrome://extensions/)</li>
+            <li>Refresh this page after loading the extension</li>
+            <li>Click the extension icon to open controls</li>
+            <li>Play audio/video below and test controls</li>
+            <li>Check browser console (F12) for debug messages</li>
+        </ol>
+    </div>
+
+    <div class="audio-section">
+        <h3>HTML5 Audio Element</h3>
+        <audio controls>
+            <source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" type="audio/wav">
+            <source src="https://www.kozco.com/tech/organfinale.wav" type="audio/wav">
+            Your browser does not support the audio element.
+        </audio>
+        <p>Test with this audio element to verify volume and EQ controls work.</p>
+    </div>
+
+    <div class="audio-section">
+        <h3>HTML5 Video Element</h3>
+        <video controls>
+            <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4">
+            <source src="https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+        <p>Test with this video element to verify audio processing on video content.</p>
+    </div>
+
+    <div class="audio-section">
+        <h3>Web Audio API Test</h3>
+        <button id="generate-tone">Generate Test Tone</button>
+        <button id="stop-tone">Stop Tone</button>
+        <p>Click to generate a test tone using Web Audio API.</p>
+        <div class="debug-info" id="webaudio-status">Web Audio API status will appear here</div>
+    </div>
+
+    <div class="debug-info" id="extension-status">
+        Extension status: Loading...
+    </div>
+
+    <script>
+        // Web Audio API test
+        let audioContext = null;
+        let oscillator = null;
+
+        document.getElementById('generate-tone').addEventListener('click', () => {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                document.getElementById('webaudio-status').textContent = 'Web Audio Context created';
+            }
+
+            if (oscillator) {
+                oscillator.stop();
+            }
+
+            oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4 note
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.start();
+            document.getElementById('webaudio-status').textContent = 'Playing 440Hz tone';
+        });
+
+        document.getElementById('stop-tone').addEventListener('click', () => {
+            if (oscillator) {
+                oscillator.stop();
+                oscillator = null;
+                document.getElementById('webaudio-status').textContent = 'Tone stopped';
+            }
+        });
+
+        // Check for extension
+        function checkExtension() {
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+                document.getElementById('extension-status').textContent = 'Extension detected: ' + chrome.runtime.id;
+                
+                // Send a test message to content script
+                window.postMessage({ type: 'EXTENSION_TEST', source: 'page' }, '*');
+            } else {
+                document.getElementById('extension-status').textContent = 'Extension not detected - make sure it\'s loaded and this page is refreshed';
+            }
+        }
+
+        // Check extension status
+        setTimeout(checkExtension, 1000);
+
+        // Log audio elements for debugging
+        window.addEventListener('load', () => {
+            const audioElements = document.querySelectorAll('audio, video');
+            console.log('Found audio/video elements:', audioElements.length);
+            audioElements.forEach((el, index) => {
+                console.log(`Element ${index}:`, el.tagName, el.src || el.currentSrc);
+                
+                el.addEventListener('loadstart', () => console.log(`${el.tagName} loadstart`));
+                el.addEventListener('canplay', () => console.log(`${el.tagName} canplay`));
+                el.addEventListener('play', () => console.log(`${el.tagName} play`));
+            });
+        });
+
+        // Listen for messages from content script
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'EXTENSION_RESPONSE') {
+                console.log('Extension response:', event.data);
+                document.getElementById('extension-status').textContent += ' - Content script active';
+            }
+        });
+    </script>
+</body>
+</html>

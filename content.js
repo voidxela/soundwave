@@ -16,30 +16,32 @@ class TabAudioController {
     });
   }
 
-  async handleMessage(message, sender, sendResponse) {
-    try {
-      switch (message.action) {
-        case 'initializeAudio':
-          await this.initializeAudio(message.settings, message.url);
-          sendResponse({ success: true });
-          break;
+  handleMessage(message, sender, sendResponse) {
+    (async () => {
+      try {
+        switch (message.action) {
+          case 'initializeAudio':
+            await this.initializeAudio(message.settings, message.url);
+            sendResponse({ success: true });
+            break;
 
-        case 'updateAudioSettings':
-          await this.updateAudioSettings(message.settings);
-          sendResponse({ success: true });
-          break;
+          case 'updateAudioSettings':
+            await this.updateAudioSettings(message.settings);
+            sendResponse({ success: true });
+            break;
 
-        case 'getCurrentSettings':
-          sendResponse({ success: true, settings: this.settings });
-          break;
+          case 'getCurrentSettings':
+            sendResponse({ success: true, settings: this.settings });
+            break;
 
-        default:
-          sendResponse({ success: false, error: 'Unknown action' });
+          default:
+            sendResponse({ success: false, error: 'Unknown action' });
+        }
+      } catch (error) {
+        console.error('Content script message error:', error);
+        sendResponse({ success: false, error: error.message });
       }
-    } catch (error) {
-      console.error('Content script message error:', error);
-      sendResponse({ success: false, error: error.message });
-    }
+    })();
   }
 
   async initializeAudio(settings, url) {
